@@ -1,0 +1,4 @@
+pydantic>=1.10
+requests
+PyPDF2
+rich
