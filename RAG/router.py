@@ -1,7 +1,11 @@
 from typing import Literal
 from langchain_core.prompts import ChatPromptTemplate
 from pydantic import BaseModel, Field
-from langchain_ollama import ChatOllama
+from langchain_google_genai import ChatGoogleGenerativeAI
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # 1. Data model - Constrained to ONLY vectorstore
 class RouteQuery(BaseModel):
@@ -12,7 +16,12 @@ class RouteQuery(BaseModel):
 
 # 2. LLM Configuration 
 # Adding format="json" helps Llama 3.2 adhere strictly to the Pydantic schema
-llm = ChatOllama(model="gpt-oss:120b-cloud", temperature=0.0, format="json")
+llm = ChatGoogleGenerativeAI(
+    model="gemini-3-flash-preview",
+    temperature=1.0,
+    thinking_level="low",
+    google_api_key=os.getenv("GOOGLE_API_KEY")
+)
 structured_llm_router = llm.with_structured_output(RouteQuery)
 
 # 3. Updated System Prompt

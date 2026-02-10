@@ -1,0 +1,260 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "cronExpression": "0 2 * * *"
+      },
+      "name": "Cron Trigger",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ],
+      "id": "node_1"
+    },
+    {
+      "parameters": {
+        "url": "https://example.com/api/licenses",
+        "method": "GET",
+        "responseFormat": "json",
+        "jsonParameters": true
+      },
+      "name": "Get Licenses",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        500,
+        300
+      ],
+      "id": "node_2"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Normalize and filter fields\nreturn items.map(item => {\n  return {\n    json: {\n      licenseKey: item.json.licenseKey,\n      product: item.json.product,\n      status: item.json.status,\n      expiry: item.json.expiry,\n      user: item.json.user,\n      usage: item.json.usage\n    }\n  };\n});"
+      },
+      "name": "Normalize Data",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        750,
+        300
+      ],
+      "id": "node_3"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Aggregate metrics\nlet total = 0;\nlet expiringSoon = 0;\nlet usageByProduct = {};\nitems.forEach(item => {\n  total++;\n  const expiry = new Date(item.json.expiry);\n  const now = new Date();\n  const diffDays = (expiry - now) / (1000 * 60 * 60 * 24);\n  if (diffDays <= 30) expiringSoon++;\n  const prod = item.json.product;\n  if (!usageByProduct[prod]) usageByProduct[prod] = 0;\n  usageByProduct[prod] += item.json.usage;\n});\nreturn [{\n  json: {\n    totalLicenses: total,\n    expiringIn30Days: expiringSoon,\n    usageByProduct: usageByProduct\n  }\n}];"
+      },
+      "name": "Aggregate Data",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        300
+      ],
+      "id": "node_4"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "sheetId": "YOUR_GOOGLE_SHEET_ID",
+        "range": "A1",
+        "valueInputMode": "RAW"
+      },
+      "name": "Write to Google Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 1,
+      "position": [
+        1250,
+        300
+      ],
+      "id": "node_5"
+    },
+    {
+      "parameters": {
+        "values": [
+          {
+            "name": "html",
+            "value": "<!DOCTYPE html><html><head><style>table {width:100%;border-collapse:collapse;} th,td {border:1px solid #ddd;padding:8px;}</style></head><body><h2>Daily License Report</h2><p>Total Licenses: {{ $json.totalLicenses }}</p><p>Expiring in 30 days: {{ $json.expiringIn30Days }}</p><h3>Usage by Product</h3><table><tr><th>Product</th><th>Usage</th></tr>{{#each $json.usageByProduct}}<tr><td>{{@key}}</td><td>{{this}}</td></tr>{{/each}}</table></body></html>"
+          }
+        ],
+        "options": {}
+      },
+      "name": "Create HTML Template",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        300
+      ],
+      "id": "node_6"
+    },
+    {
+      "parameters": {
+        "url": "https://api.pdfshift.io/v3/convert",
+        "method": "POST",
+        "jsonParameters": true,
+        "options": {},
+        "bodyParametersUi": {
+          "parameter": [
+            {
+              "name": "source",
+              "value": "={{$json.html}}"
+            },
+            {
+              "name": "landscape",
+              "value": false
+            }
+          ]
+        },
+        "responseFormat": "file"
+      },
+      "name": "Convert to PDF",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        1750,
+        300
+      ],
+      "id": "node_7"
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "binaryData": true,
+        "fileName": "License_Report_{{=$now}}.pdf",
+        "parentFolderId": "YOUR_GOOGLE_DRIVE_FOLDER_ID"
+      },
+      "name": "Upload PDF to Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 1,
+      "position": [
+        2000,
+        300
+      ],
+      "id": "node_8"
+    },
+    {
+      "parameters": {
+        "to": "finance@example.com",
+        "subject": "Daily License Report",
+        "body": "Hello,\n\nPlease find the daily license report attached. The live data is also available in the Google Sheet.\n\nBest regards,\nAutomation Bot",
+        "attachments": [
+          {
+            "binaryPropertyName": "data",
+            "filename": "License_Report_{{=$now}}.pdf"
+          }
+        ]
+      },
+      "name": "Send Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 1,
+      "position": [
+        2250,
+        300
+      ],
+      "id": "node_9"
+    }
+  ],
+  "connections": {
+    "Cron Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Licenses",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Licenses": {
+      "main": [
+        [
+          {
+            "node": "Normalize Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Data": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Data": {
+      "main": [
+        [
+          {
+            "node": "Write to Google Sheet",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create HTML Template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write to Google Sheet": {
+      "main": [
+        [
+          {
+            "node": "Create HTML Template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create HTML Template": {
+      "main": [
+        [
+          {
+            "node": "Convert to PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to PDF": {
+      "main": [
+        [
+          {
+            "node": "Upload PDF to Drive",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload PDF to Drive": {
+      "main": [
+        [
+          {
+            "node": "Send Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

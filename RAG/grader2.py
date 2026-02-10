@@ -1,7 +1,10 @@
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_ollama import ChatOllama
+from langchain_google_genai import ChatGoogleGenerativeAI
 from pydantic import BaseModel, Field
+import os
+from dotenv import load_dotenv
 
+load_dotenv()
 
 # ---------------------------
 # Data model
@@ -18,7 +21,12 @@ class GradeAnswer(BaseModel):
 # LLM
 # ---------------------------
 
-llm = ChatOllama(model="gpt-oss:120b-cloud", temperature=0, format="json")
+llm = ChatGoogleGenerativeAI(
+    model="gemini-3-flash-preview",
+    temperature=1.0,
+    thinking_level="low",
+    google_api_key=os.getenv("GOOGLE_API_KEY")
+)
 structured_llm_grader = llm.with_structured_output(GradeAnswer)
 
 

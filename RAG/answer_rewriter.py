@@ -1,8 +1,17 @@
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_ollama import ChatOllama
+from langchain_google_genai import ChatGoogleGenerativeAI
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 from langchain_core.output_parsers import StrOutputParser
 
-llm = ChatOllama(model="gpt-oss:120b-cloud", temperature=0, format="json")
+llm = ChatGoogleGenerativeAI(
+    model="gemini-3-flash-preview",
+    temperature=1.0,
+    thinking_level="medium",
+    google_api_key=os.getenv("GOOGLE_API_KEY")
+)
 
 # Prompt
 system = """You a question re-writer that converts an input question to a better version that is optimized \n 

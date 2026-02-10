@@ -1,9 +1,17 @@
-from langchain_ollama import ChatOllama
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
+import os
+from dotenv import load_dotenv
 
+load_dotenv()
 
-llm = ChatOllama(model="gpt-oss:120b-cloud", temperature=0)
+llm = ChatGoogleGenerativeAI(
+    model="gemini-3-flash-preview",
+    temperature=1.0,
+    thinking_level="medium",
+    google_api_key=os.getenv("GOOGLE_API_KEY")
+)
 
 def escape_braces(text: str) -> str:
     return text.replace("{", "{{").replace("}", "}}")
